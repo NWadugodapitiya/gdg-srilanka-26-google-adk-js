@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Personal Finance Agent — UI</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Roboto, "Segoe UI", Arial; margin: 24px; color: #111 }
+    .container { max-width: 880px; margin: 0 auto }
+    input, textarea, button { font-family: inherit }
+    .row { display:flex; gap:12px; margin-bottom:12px }
+    .col { flex:1 }
+    #output { background:#0f172a; color:#e6eef8; padding:12px; border-radius:6px; min-height:160px; white-space:pre-wrap; overflow:auto }
+    label { font-weight:600; font-size:14px }
+    .controls { display:flex; gap:8px }
+    .muted { color:#666; font-size:13px }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Personal Finance Agent — GUI</h1>
+    <p class="muted">Send messages to the demo agent and stream responses live.</p>
+
+    <div>
+      <label for="userId">User ID</label>
+      <input id="userId" placeholder="demo-user" value="demo-user" />
+    </div>
+
+    <div>
+      <label for="sessionId">Session ID</label>
+      <input id="sessionId" placeholder="demo-session-001" value="demo-session-001" />
+    </div>
+
+    <div>
+      <label for="message">Message</label>
+      <textarea id="message" rows="5" placeholder="Ask the agent to analyze transactions, set budgets, etc."></textarea>
+    </div>
+
+    <div class="controls">
+      <button id="send">Send</button>
+      <button id="cancel" disabled>Cancel</button>
+      <button id="clear">Clear</button>
+      <div style="margin-left:auto" id="status" class="muted">Idle</div>
+    </div>
+
+    <hr />
+
+    <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
+      <label for="adkUrl" class="muted" style="margin-right:6px">ADK Devtools URL</label>
+      <input id="adkUrl" placeholder="http://localhost:3001" value="http://localhost:3001" style="flex:1" />
+      <button id="openAdk">Open Devtools</button>
+      <button id="checkAdk">Check</button>
+      <div id="adkStatus" style="margin-left:8px" class="muted">Unknown</div>
+    </div>
+
+    <h3>Output</h3>
+    <pre id="output"></pre>
+  </div>
+
+  <script type="module" src="/public/app.js"></script>
+</body>
+</html>

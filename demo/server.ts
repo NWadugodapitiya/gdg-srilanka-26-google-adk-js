@@ -26,15 +26,47 @@ console.log('✅ All required environment variables are set');
 
 // Create global runner instance (like the working simulation)
 const appName = 'finance_agent_app';
-const globalRunner = new InMemoryRunner({
-  agent: personalFinanceAgent,
-  appName,
-});
+
+// Mock mode: when using a placeholder key (DUMMY) or explicit USE_MOCK=1,
+// we provide canned responses so the UI can be tested without a valid API key.
+const mockMode = process.env.GOOGLE_GENAI_API_KEY === 'DUMMY' || process.env.USE_MOCK === '1';
+
+const globalRunner = mockMode
+  ? null
+  : new InMemoryRunner({
+      agent: personalFinanceAgent,
+      appName,
+    });
 
 const app = new Hono();
 
+import fs from 'fs';
+
 app.get('/', (c) => {
-  return c.text('Finance Agent Hono Server is running!');
+  // Serve the simple browser UI if it exists in ./public/index.html
+  try {
+    const html = fs.readFileSync(new URL('./public/index.html', import.meta.url), 'utf-8');
+    return c.html(html);
+  } catch (err) {
+    console.error('UI not found:', err);
+    return c.text('Finance Agent Hono Server is running! (UI not found)');
+  }
+});
+
+// Serve static files from ./public (e.g., /public/app.js)
+app.get('/public/*', (c) => {
+  try {
+    const url = new URL(c.req.url);
+    const pathname = url.pathname.replace(/^\/public\//, '');
+    const fileUrl = new URL(`./public/${pathname}`, import.meta.url);
+    const data = fs.readFileSync(fileUrl);
+    const ext = pathname.split('.').pop() || '';
+    const contentType = ext === 'js' ? 'application/javascript' : ext === 'css' ? 'text/css' : 'text/html';
+    return c.body(data, 200, { 'Content-Type': contentType });
+  } catch (err) {
+    console.error('Static file not found:', err);
+    return c.text('Not found', 404);
+  }
 });
 
 app.post('/chat', async (c) => {
@@ -46,29 +78,36 @@ app.post('/chat', async (c) => {
 
   // Get or create session - don't recreate existing sessions!
   console.log(`Checking session: ${sessionId} for user: ${userId}`);
-  let session: Awaited<ReturnType<typeof globalRunner.sessionService.getSession>>;
-  try {
-    // Try to get existing session first
-    session = await globalRunner.sessionService.getSession({
-      appName,
-      userId,
-      sessionId,
-    });
-    console.log(`✅ Using existing session: ${session!.id}`);
-  } catch (error) {
-    // Session doesn't exist, create a new one
-    console.log(`📝 Creating new session: ${sessionId}`);
+
+  // If we're in mock mode, avoid calling globalRunner.sessionService (it's null)
+  let session: { id: string; state?: any; userId?: string };
+  if (mockMode) {
+    session = { id: sessionId, userId, state: {} };
+    console.log(`✅ Using mock session: ${session.id}`);
+  } else {
     try {
-      session = await globalRunner.sessionService.createSession({
+      // Try to get existing session first
+      session = await globalRunner.sessionService.getSession({
         appName,
         userId,
         sessionId,
-        state: {},
       });
-      console.log(`✅ New session created: ${session.id}`);
-    } catch (createError) {
-      console.error('❌ Failed to create session:', createError);
-      return c.json({ error: 'Failed to create or retrieve session' }, 500);
+      console.log(`✅ Using existing session: ${session!.id}`);
+    } catch (error) {
+      // Session doesn't exist, create a new one
+      console.log(`📝 Creating new session: ${sessionId}`);
+      try {
+        session = await globalRunner.sessionService.createSession({
+          appName,
+          userId,
+          sessionId,
+          state: {},
+        });
+        console.log(`✅ New session created: ${session.id}`);
+      } catch (createError) {
+        console.error('❌ Failed to create session:', createError);
+        return c.json({ error: 'Failed to create or retrieve session' }, 500);
+      }
     }
   }
 
@@ -80,6 +119,17 @@ app.post('/chat', async (c) => {
 
     try {
       console.log(`Processing message for user ${userId}, session ${sessionId}`);
+
+      // Mock-mode responses (fast, deterministic) so UI works without a real key
+      if (mockMode) {
+        await stream.write("Hello! This is a mock agent response.\n");
+        await new Promise(r => setTimeout(r, 250));
+        await stream.write("I can simulate analysis, budgeting, and reports for testing.\n");
+        await new Promise(r => setTimeout(r, 250));
+        await stream.write("Try: 'Analyze transactions: ...' or 'Set a budget of $100 for dining.'\n");
+        return;
+      }
+
       const userContent = createUserContent(message);
       console.log('Created user content, starting runner...');
 
@@ -98,8 +148,16 @@ app.post('/chat', async (c) => {
           hasContent: !!adkEvent.content,
           hasParts: !!adkEvent.content?.parts,
           author: adkEvent.author,
-          final: !!(adkEvent as any).final
+          final: !!(adkEvent as any).final,
+          errorCode: (adkEvent as any).errorCode
         });
+
+        // Surface ADK error events to the browser so the UI shows meaningful messages
+        if ((adkEvent as any).errorCode) {
+          const errMsg = (adkEvent as any).errorMessage || 'Unknown ADK error';
+          await stream.write(`\n[ADK ERROR ${ (adkEvent as any).errorCode }] ${errMsg}\n`);
+          break;
+        }
 
         if (adkEvent.content?.parts?.[0]?.text) {
           const text = adkEvent.content.parts[0].text;

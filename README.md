@@ -46,6 +46,18 @@ cp env.example .env
 
 ### Run the Demo
 
+### Developer UI: ADK Devtools
+
+You can launch the interactive ADK Devtools to inspect the agent, tool calls and session state.
+
+From the `demo/` directory run:
+
+```bash
+bun run dev
+```
+
+This starts the ADK Devtools web UI (check terminal output for the URL). Open the URL in your browser to debug or visualize agent runs while the server is running.
+
 ```bash
 # Option 1: In-memory simulation (recommended for testing)
 bun run demo

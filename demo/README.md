@@ -32,6 +32,23 @@ bun run demo-server
 
 ## 📁 Files Overview
 
+### ADK Devtools (Developer UI)
+
+This project integrates with **Google ADK Devtools** for an interactive developer UI to inspect agent runs, tools, and state.
+
+To open the Devtools UI:
+
+```bash
+# From demo/ folder
+bun run dev
+# or
+npx @google/adk-devtools run demo/agent.ts
+```
+
+The Devtools web UI will start on a local port (check terminal output). You can then open the UI in your browser and use it to step through agent runs, inspect tool calls, and debug session state.
+
+If you're running the demo server concurrently, you can open the Devtools UI in a separate terminal using the same command.
+
 ### Core Implementation
 - `agent.ts` - Main agent implementation with finance tools
 - `server.ts` - Hono server wrapper for HTTP-based chat
